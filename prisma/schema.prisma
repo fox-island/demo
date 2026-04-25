@@ -1,0 +1,52 @@
+datasource db {
+  provider = "mysql" 
+  url      = env("DATABASE_URL")  // 把这行加回来！
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+// 1. 用户表（仅用于登录注册鉴权）
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique 
+  password  String   // 存放 bcrypt 加密后的哈希值
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// 2. 卡牌表（全局图鉴，与用户无关联）
+model Card {
+  id          Int      @id @default(autoincrement())
+  name        String   // 卡牌名字
+  description String   // 卡牌信息/描述
+  rarity      Rarity   // 稀有度枚举
+  coverUrl    String   // 卡面图片 URL
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// 稀有度枚举
+enum Rarity {
+  COMMON   // 普通
+  UNCOMMON // 罕见
+  RARE     // 稀有
+}
+
+// 3. 知识条目表（树状结构，用于侧边栏无限极菜单）
+model Knowledge {
+  id        Int      @id @default(autoincrement())
+  title     String   // 条目标题
+  content   String   @db.Text // 具体文字内容（长文本）
+  
+  // 层级关系设计（自关联）
+  parentId  Int?     // 父级ID，顶级导航为 null
+  parent    Knowledge? @relation("KnowledgeTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children  Knowledge[] @relation("KnowledgeTree")
+  
+  sort      Int      @default(0) // 同级排序字段
+  menuKey   String   @unique     // 前端 el-menu 的唯一 index
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
