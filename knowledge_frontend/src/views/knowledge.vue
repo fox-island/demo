@@ -1,156 +1,128 @@
 <template>
-  <!-- 最外层容器：横向排列 -->
-  <div class="layout-container">
+  <!-- 整体容器：距离顶部 56px，避免被顶部导航栏遮挡 -->
+  <div class="layout-container" style="margin-top: 56px">
+    <!-- 可折叠侧边栏 -->
+    <el-aside width="auto" class="sidebar">
+      <el-menu
+        v-model:collapse="isCollapse"
+        class="sidebar-menu"
+        background-color="#304156"
+        text-color="#fff"
+        active-text-color="#ffd04b"
+        @select="handleMenuSelect"
+        unique-opened
+      >
+        <!-- 递归渲染树形菜单 -->
+        <template v-for="item in menuList" :key="item.id">
+          <!-- 子菜单：有 children 就渲染折叠面板 -->
+          <el-sub-menu v-if="item.children && item.children.length" :index="item.id">
+            <template #title>{{ item.name }}</template>
+            <el-menu-item
+              v-for="child in item.children"
+              :key="child.id"
+              :index="child.id"
+            >
+              {{ child.name }}
+            </el-menu-item>
+          </el-sub-menu>
 
-    <!-- 左侧导航栏 -->
-  <!-- 左侧导航栏 -->
-<!-- 左侧导航栏 -->
-<el-menu
-  class="left-menu"
-  default-active="1"
-  background-color="#304156"
-  text-color="#bfcbd9"
-  active-text-color="#409EFF"
-  @select="handleMenuSelect"
->
-  <template v-for="item in menuList" :key="item.id">
-    
-    <!-- 👇 重点：用 div 包裹一下，打破 el-menu-item 的连续性 👇 -->
-    <div class="fake-parent-menu">
-      {{ item.name }}
-    </div>
+          <!-- 普通菜单项：无 children -->
+          <el-menu-item v-else :index="item.id">
+            {{ item.name }}
+          </el-menu-item>
+        </template>
+      </el-menu>
+    </el-aside>
 
-    <!-- 子级菜单保持不变 -->
-    <el-menu-item 
-      v-for="child in item.children" 
-      :key="child.id" 
-      :index="child.id"
-      style="padding-left: 40px;"
-    >
-      {{ child.name }}
-    </el-menu-item>
-
-  </template>
-</el-menu>
-
-
-
-    <!-- 右侧内容区 -->
-    <div class="main-content">
-      <div v-if="!currentContent" class="welcome-box">
-        <p>请点击左侧菜单查看详细内容</p>
-      </div>
+    <!-- 右侧内容区域 -->
+    <el-main class="main-content">
+      <div v-if="!currentContent" class="empty-tip">请点击左侧菜单查看内容</div>
       <div v-else class="content-box">
-        <h2 class="content-title">{{ currentContent.title }}</h2>
-        <div class="content-text" v-html="currentContent.content"></div>
+        <h2>{{ currentContent.title }}</h2>
+        <div class="content-text">{{ currentContent.content }}</div>
       </div>
-    </div>
-
+    </el-main>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
-import { ArrowDown } from '@element-plus/icons-vue'
+import { ElMenu, ElSubMenu, ElMenuItem, ElAside, ElMain } from 'element-plus'
+import 'element-plus/dist/index.css'
 
+// 菜单数据
 const menuList = ref([])
+// 折叠状态
+const isCollapse = ref(false)
+// 当前右侧显示的内容
 const currentContent = ref(null)
 
+// 页面加载时获取树形菜单
 onMounted(() => {
-  axios.get('http://localhost:8080/api/menus')
-    .then(response => {
-      console.log('████ 后端数据 ██████', response.data)
-      
-      // 👇👇👇 加上这一行，看看前端到底拿到了什么鬼东西 👇👇👇
-      console.log('████ 遗物的真实面目和长度 ██████', '|' + response.data[0].name + '|', '长度:', response.data[0].name.length)
-      
-      menuList.value = response.data
-    })
+  axios.get('http://localhost:8080/api/menus').then(res => {
+    menuList.value = res.data
+  })
 })
 
-
-const handleMenuSelect = (index) => {
-  if (!index) return
-
-  axios.get(`http://localhost:8080/api/knowledge/${index}`)
-    .then(response => {
-      currentContent.value = response.data
-    })
-    .catch(err => {
-      console.error('获取内容失败:', err)
-      currentContent.value = null
-    })
+// 点击菜单 → 获取对应知识内容
+const handleMenuSelect = async (menuKey) => {
+  try {
+    const res = await axios.get(`http://localhost:8080/api/knowledge/${menuKey}`)
+    currentContent.value = res.data
+  } catch (err) {
+    console.error('获取内容失败', err)
+    currentContent.value = null
+  }
 }
 </script>
 
 <style scoped>
-/* 伪造的父级菜单样式 */
-.fake-parent-menu {
-  height: 56px;
-  line-height: 56px;
-  padding-left: 20px;
-  color: #ffffff !important;
-  font-size: 14px;
-  background-color: #263445 !important; /* 比背景稍微深一点，做区分 */
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1); /* 加条线隔开 */
-  box-sizing: border-box;
-}
-
 .layout-container {
   display: flex;
-  height: 100vh;
+  height: calc(100vh - 56px); /* 减去顶部高度，撑满剩余屏幕 */
+  overflow: hidden;
 }
 
-.left-menu {
-  width: 200px;
-  height: 100vh;
+.sidebar {
+  background: #304156;
+  height: 100%;
+}
+
+.sidebar-menu {
   border-right: none;
-  overflow-x: hidden;
+  height: 100%;
 }
 
 .main-content {
   flex: 1;
-  background-color: #f0f2f5;
-  padding: 30px;
+  background: #f5f5f5;
+  padding: 20px;
   overflow-y: auto;
 }
 
-.welcome-box {
+.empty-tip {
   text-align: center;
-  margin-top: 20%;
-  color: #909399;
-}
-.welcome-box h2 {
-  margin-bottom: 15px;
-  color: #606266;
+  color: #999;
+  font-size: 16px;
+  margin-top: 100px;
 }
 
 .content-box {
   background: #fff;
   padding: 30px;
   border-radius: 8px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 }
 
-.content-title {
-  margin-bottom: 20px;
-  padding-bottom: 15px;
-  border-bottom: 2px solid #409EFF;
-  color: #303133;
+.content-box h2 {
+  margin: 0 0 20px;
+  color: #333;
 }
 
 .content-text {
+  color: #666;
   line-height: 1.8;
-  color: #606266;
   font-size: 15px;
-}
-
-.content-text :deep(p) {
-  margin-bottom: 12px;
-}
-.content-text :deep(h2) {
-  margin: 20px 0 10px 0;
-  color: #303133;
 }
 </style>

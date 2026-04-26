@@ -104,7 +104,7 @@ app.get('/api/menus', async (req, res) => {
                     return {
                         id: String(item.menuKey), // 转字符串匹配前端 el-menu 的 index
                         name: item.title,
-                        children: children.length > 0 ? children : undefined
+                        children: children.length > 0 ? children : []
                     };
                 });
         }
@@ -113,6 +113,7 @@ app.get('/api/menus', async (req, res) => {
         res.json(menuTree);
     } catch (err) {
         res.status(500).json({ error: '获取菜单失败' });
+
     }
 });
 
